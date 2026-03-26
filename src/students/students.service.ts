@@ -11,11 +11,11 @@ export class StudentsService {
     @Inject(DB_CONNECTION) private readonly db: NodePgDatabase<typeof schema>,
   ) {}
 
-  async create(createStudentDto: CreateStudentDto) {
+  async create(createStudentDto: CreateStudentDto, tutorId: string) {
     const newStudent = await this.db
       .insert(schema.students)
       .values({
-        tutorId: createStudentDto.tutorId,
+        tutorId: tutorId,
         name: createStudentDto.name,
         contactInfo: createStudentDto.contactInfo,
       })
