@@ -1,1 +1,5 @@
-export class CreateStudentDto {}
+export class CreateStudentDto {
+  tutorId: string;
+  name: string;
+  contactInfo?: string;
+}

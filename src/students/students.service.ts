@@ -1,26 +1,32 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { CreateStudentDto } from './dto/create-student.dto';
-import { UpdateStudentDto } from './dto/update-student.dto';
+import { DB_CONNECTION } from '../database/database.module';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import * as schema from '../db/schema';
+import { eq } from 'drizzle-orm';
 
 @Injectable()
 export class StudentsService {
-  create(createStudentDto: CreateStudentDto) {
-    return 'This action adds a new student';
+  constructor(
+    @Inject(DB_CONNECTION) private readonly db: NodePgDatabase<typeof schema>,
+  ) {}
+
+  async create(createStudentDto: CreateStudentDto) {
+    const newStudent = await this.db
+      .insert(schema.students)
+      .values({
+        tutorId: createStudentDto.tutorId,
+        name: createStudentDto.name,
+        contactInfo: createStudentDto.contactInfo,
+      })
+      .returning();
+
+    return newStudent[0];
   }
 
-  findAll() {
-    return `This action returns all students`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} student`;
-  }
-
-  update(id: number, updateStudentDto: UpdateStudentDto) {
-    return `This action updates a #${id} student`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} student`;
+  async findAllByTutor(tutorId: string) {
+    return await this.db.query.students.findMany({
+      where: eq(schema.students.tutorId, tutorId),
+    });
   }
 }
