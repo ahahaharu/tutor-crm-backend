@@ -11,13 +11,28 @@ import { StudentsService } from './students.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import type { RequestWithUser } from '../auth/auth.guard';
+// Импортируем красоту для Swagger
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
 
+@ApiTags('Students')
+@ApiBearerAuth()
 @UseGuards(AuthGuard)
 @Controller('students')
 export class StudentsController {
   constructor(private readonly studentsService: StudentsService) {}
 
   @Post()
+  @ApiOperation({ summary: 'Create a new student securely' })
+  @ApiResponse({ status: 201, description: 'Student successfully created.' })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized. Token missing or invalid.',
+  })
   create(
     @Body() createStudentDto: CreateStudentDto,
     @Req() req: RequestWithUser,
@@ -27,6 +42,7 @@ export class StudentsController {
   }
 
   @Get('tutor/:tutorId')
+  @ApiOperation({ summary: 'Get all students for a specific tutor' })
   findAllByTutor(@Param('tutorId') tutorId: string) {
     return this.studentsService.findAllByTutor(tutorId);
   }
