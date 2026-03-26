@@ -1,26 +1,19 @@
-import { Injectable } from '@nestjs/common';
-import { CreateLessonDto } from './dto/create-lesson.dto';
-import { UpdateLessonDto } from './dto/update-lesson.dto';
+import { Injectable, Inject } from '@nestjs/common';
+import { DB_CONNECTION } from '../database/database.module';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import * as schema from '../db/schema';
+import { eq } from 'drizzle-orm';
 
 @Injectable()
 export class LessonsService {
-  create(createLessonDto: CreateLessonDto) {
-    return 'This action adds a new lesson';
-  }
+  constructor(
+    @Inject(DB_CONNECTION) private readonly db: NodePgDatabase<typeof schema>,
+  ) {}
 
-  findAll() {
-    return `This action returns all lessons`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} lesson`;
-  }
-
-  update(id: number, updateLessonDto: UpdateLessonDto) {
-    return `This action updates a #${id} lesson`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} lesson`;
+  async findAllByStudent(studentId: string) {
+    return await this.db.query.lessons.findMany({
+      where: eq(schema.lessons.studentId, studentId),
+      orderBy: (lessons, { asc }) => [asc(lessons.scheduledAt)],
+    });
   }
 }
