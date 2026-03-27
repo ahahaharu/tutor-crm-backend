@@ -10,6 +10,7 @@ import { TransactionsModule } from './transactions/transactions.module';
 import { AuthModule } from './auth/auth.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { ParentsModule } from './parents/parents.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { join } from 'path';
     LessonsModule,
     TransactionsModule,
     AuthModule,
+    ParentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
