@@ -14,11 +14,14 @@ export class StudentsService {
 
   async create(createStudentDto: CreateStudentDto, tutorId: string) {
     return await this.db.transaction(async (tx) => {
+      const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(createStudentDto.name)}&background=random&color=fff`;
+
       const [newStudent] = await tx
         .insert(schema.students)
         .values({
           tutorId: tutorId,
           name: createStudentDto.name,
+          avatarUrl: defaultAvatar,
         })
         .returning();
 
@@ -81,6 +84,22 @@ export class StudentsService {
     const [updatedStudent] = await this.db
       .update(schema.students)
       .set(updateStudentDto)
+      .where(
+        and(eq(schema.students.id, id), eq(schema.students.tutorId, tutorId)),
+      )
+      .returning();
+
+    if (!updatedStudent) {
+      throw new NotFoundException('Student not found or access denied');
+    }
+
+    return updatedStudent;
+  }
+
+  async updateAvatar(id: string, tutorId: string, avatarUrl: string) {
+    const [updatedStudent] = await this.db
+      .update(schema.students)
+      .set({ avatarUrl })
       .where(
         and(eq(schema.students.id, id), eq(schema.students.tutorId, tutorId)),
       )
