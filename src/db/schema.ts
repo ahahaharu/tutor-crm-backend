@@ -7,6 +7,7 @@ import {
   time,
   pgEnum,
 } from 'drizzle-orm/pg-core';
+import { relations } from 'drizzle-orm';
 
 export const lessonStatusEnum = pgEnum('lesson_status', [
   'PLANNED',
@@ -27,12 +28,48 @@ export const tutors = pgTable('tutors', {
 });
 
 export const students = pgTable('students', {
-  id: uuid('id').primaryKey().defaultRandom(),
+  id: uuid('id').defaultRandom().primaryKey(),
   tutorId: uuid('tutor_id')
-    .notNull()
-    .references(() => tutors.id, { onDelete: 'cascade' }),
+    .references(() => tutors.id, { onDelete: 'cascade' })
+    .notNull(),
   name: varchar('name', { length: 255 }).notNull(),
-  contactInfo: varchar('contact_info', { length: 255 }),
+  avatarUrl: varchar('avatar_url', { length: 1024 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const parents = pgTable('parents', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  studentId: uuid('student_id')
+    .references(() => students.id, { onDelete: 'cascade' })
+    .notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const contactTypeEnum = pgEnum('contact_type', [
+  'PHONE',
+  'TELEGRAM',
+  'VIBER',
+  'WHATSAPP',
+  'VK',
+  'DISCORD',
+  'CUSTOM',
+]);
+
+export const contacts = pgTable('contacts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  studentId: uuid('student_id').references(() => students.id, {
+    onDelete: 'cascade',
+  }),
+  parentId: uuid('parent_id').references(() => parents.id, {
+    onDelete: 'cascade',
+  }),
+
+  type: contactTypeEnum('type').notNull(),
+  value: varchar('value', { length: 255 }).notNull(),
+  customLabel: varchar('custom_label', { length: 255 }),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 export const lessonTemplates = pgTable('lesson_templates', {
@@ -73,3 +110,72 @@ export const transactions = pgTable('transactions', {
   type: transactionTypeEnum('type').notNull(),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow().notNull(),
 });
+
+export const tutorsRelations = relations(tutors, ({ many }) => ({
+  students: many(students),
+}));
+
+export const studentsRelations = relations(students, ({ one, many }) => ({
+  tutor: one(tutors, {
+    fields: [students.tutorId],
+    references: [tutors.id],
+  }),
+  parents: many(parents),
+  contacts: many(contacts),
+  lessonTemplates: many(lessonTemplates),
+  lessons: many(lessons),
+  transactions: many(transactions),
+}));
+
+export const parentsRelations = relations(parents, ({ one, many }) => ({
+  student: one(students, {
+    fields: [parents.studentId],
+    references: [students.id],
+  }),
+  contacts: many(contacts),
+}));
+
+export const contactsRelations = relations(contacts, ({ one }) => ({
+  student: one(students, {
+    fields: [contacts.studentId],
+    references: [students.id],
+  }),
+  parent: one(parents, {
+    fields: [contacts.parentId],
+    references: [parents.id],
+  }),
+}));
+
+export const lessonTemplatesRelations = relations(
+  lessonTemplates,
+  ({ one, many }) => ({
+    student: one(students, {
+      fields: [lessonTemplates.studentId],
+      references: [students.id],
+    }),
+    lessons: many(lessons),
+  }),
+);
+
+export const lessonsRelations = relations(lessons, ({ one, many }) => ({
+  student: one(students, {
+    fields: [lessons.studentId],
+    references: [students.id],
+  }),
+  template: one(lessonTemplates, {
+    fields: [lessons.templateId],
+    references: [lessonTemplates.id],
+  }),
+  transactions: many(transactions),
+}));
+
+export const transactionsRelations = relations(transactions, ({ one }) => ({
+  student: one(students, {
+    fields: [transactions.studentId],
+    references: [students.id],
+  }),
+  lesson: one(lessons, {
+    fields: [transactions.lessonId],
+    references: [lessons.id],
+  }),
+}));
