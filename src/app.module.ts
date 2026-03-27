@@ -8,9 +8,17 @@ import { LessonTemplatesModule } from './lesson-templates/lesson-templates.modul
 import { LessonsModule } from './lessons/lessons.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { AuthModule } from './auth/auth.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 @Module({
   imports: [
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'uploads'),
+      serveRoot: '/uploads',
+    }),
+    DatabaseModule,
+    TutorsModule,
     DatabaseModule,
     TutorsModule,
     StudentsModule,
