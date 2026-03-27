@@ -1,20 +1,70 @@
-import { IsString, IsOptional, Length } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'; // Импортируем из Swagger
+import {
+  IsString,
+  IsOptional,
+  Length,
+  IsArray,
+  ValidateNested,
+  IsEnum,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-export class CreateStudentDto {
-  @ApiProperty({
-    example: 'Anton Secure',
-    description: 'The full name of the student',
-  })
+export enum ContactType {
+  PHONE = 'PHONE',
+  TELEGRAM = 'TELEGRAM',
+  VIBER = 'VIBER',
+  WHATSAPP = 'WHATSAPP',
+  VK = 'VK',
+  DISCORD = 'DISCORD',
+  CUSTOM = 'CUSTOM',
+}
+
+export class CreateContactDto {
+  @ApiProperty({ enum: ContactType, example: ContactType.TELEGRAM })
+  @IsEnum(ContactType, { message: 'Недопустимый тип контакта' })
+  type: ContactType;
+
+  @ApiProperty({ example: '@ivan_student' })
   @IsString()
-  @Length(2, 50, { message: 'name must be between 2 and 50 characters' })
-  name: string;
+  value: string;
 
-  @ApiPropertyOptional({
-    example: '@anton_telegram',
-    description: 'Contact information (Telegram, phone, etc.)',
-  })
+  @ApiPropertyOptional({ example: 'Skype (если тип CUSTOM)' })
   @IsOptional()
   @IsString()
-  contactInfo?: string;
+  customLabel?: string;
+}
+
+export class CreateParentDto {
+  @ApiProperty({ example: 'Мария Ивановна' })
+  @IsString()
+  @Length(2, 255)
+  name: string;
+
+  @ApiPropertyOptional({ type: [CreateContactDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateContactDto)
+  contacts?: CreateContactDto[];
+}
+
+export class CreateStudentDto {
+  @ApiProperty({ example: 'Петя Иванов' })
+  @IsString()
+  @Length(2, 255)
+  name: string;
+
+  @ApiPropertyOptional({ type: [CreateContactDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateContactDto)
+  contacts?: CreateContactDto[];
+
+  @ApiPropertyOptional({ type: [CreateParentDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateParentDto)
+  parents?: CreateParentDto[];
 }

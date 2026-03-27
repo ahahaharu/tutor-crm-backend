@@ -13,16 +13,49 @@ export class StudentsService {
   ) {}
 
   async create(createStudentDto: CreateStudentDto, tutorId: string) {
-    const newStudent = await this.db
-      .insert(schema.students)
-      .values({
-        tutorId: tutorId,
-        name: createStudentDto.name,
-        contactInfo: createStudentDto.contactInfo,
-      })
-      .returning();
+    return await this.db.transaction(async (tx) => {
+      const [newStudent] = await tx
+        .insert(schema.students)
+        .values({
+          tutorId: tutorId,
+          name: createStudentDto.name,
+        })
+        .returning();
 
-    return newStudent[0];
+      if (createStudentDto.contacts && createStudentDto.contacts.length > 0) {
+        const studentContacts = createStudentDto.contacts.map((contact) => ({
+          studentId: newStudent.id,
+          type: contact.type as typeof schema.contacts.$inferInsert.type,
+          value: contact.value,
+          customLabel: contact.customLabel,
+        }));
+        await tx.insert(schema.contacts).values(studentContacts);
+      }
+
+      if (createStudentDto.parents && createStudentDto.parents.length > 0) {
+        for (const parent of createStudentDto.parents) {
+          const [newParent] = await tx
+            .insert(schema.parents)
+            .values({
+              studentId: newStudent.id,
+              name: parent.name,
+            })
+            .returning();
+
+          if (parent.contacts && parent.contacts.length > 0) {
+            const parentContacts = parent.contacts.map((contact) => ({
+              parentId: newParent.id,
+              type: contact.type as typeof schema.contacts.$inferInsert.type,
+              value: contact.value,
+              customLabel: contact.customLabel,
+            }));
+            await tx.insert(schema.contacts).values(parentContacts);
+          }
+        }
+      }
+
+      return newStudent;
+    });
   }
 
   async findAllByTutor(tutorId: string) {
