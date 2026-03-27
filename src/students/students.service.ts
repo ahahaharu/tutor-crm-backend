@@ -59,8 +59,17 @@ export class StudentsService {
   }
 
   async findAllByTutor(tutorId: string) {
-    return await this.db.query.students.findMany({
+    return this.db.query.students.findMany({
       where: eq(schema.students.tutorId, tutorId),
+      with: {
+        contacts: true,
+        parents: {
+          with: {
+            contacts: true,
+          },
+        },
+      },
+      orderBy: (students, { desc }) => [desc(students.createdAt)],
     });
   }
 
