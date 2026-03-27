@@ -1,9 +1,10 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { DB_CONNECTION } from '../database/database.module';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
+import { UpdateStudentDto } from './dto/update-student.dto';
 
 @Injectable()
 export class StudentsService {
@@ -28,5 +29,40 @@ export class StudentsService {
     return await this.db.query.students.findMany({
       where: eq(schema.students.tutorId, tutorId),
     });
+  }
+
+  async update(
+    id: string,
+    tutorId: string,
+    updateStudentDto: UpdateStudentDto,
+  ) {
+    const [updatedStudent] = await this.db
+      .update(schema.students)
+      .set(updateStudentDto)
+      .where(
+        and(eq(schema.students.id, id), eq(schema.students.tutorId, tutorId)),
+      )
+      .returning();
+
+    if (!updatedStudent) {
+      throw new NotFoundException('Student not found or access denied');
+    }
+
+    return updatedStudent;
+  }
+
+  async remove(id: string, tutorId: string) {
+    const [deletedStudent] = await this.db
+      .delete(schema.students)
+      .where(
+        and(eq(schema.students.id, id), eq(schema.students.tutorId, tutorId)),
+      )
+      .returning();
+
+    if (!deletedStudent) {
+      throw new NotFoundException('Student not found or access denied');
+    }
+
+    return { message: 'Student successfully deleted', id: deletedStudent.id };
   }
 }
