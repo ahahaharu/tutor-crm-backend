@@ -3,8 +3,9 @@ import { CreateStudentDto } from './dto/create-student.dto';
 import { DB_CONNECTION } from '../database/database.module';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, ilike, desc, asc, count } from 'drizzle-orm';
 import { UpdateStudentDto } from './dto/update-student.dto';
+import { GetStudentsQueryDto } from './dto/get-students-query.dto';
 
 @Injectable()
 export class StudentsService {
@@ -61,19 +62,58 @@ export class StudentsService {
     });
   }
 
-  async findAllByTutor(tutorId: string) {
-    return this.db.query.students.findMany({
-      where: eq(schema.students.tutorId, tutorId),
+  async findAllByTutor(tutorId: string, query: GetStudentsQueryDto) {
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+    } = query;
+    const offset = (page - 1) * limit;
+
+    const conditions = [eq(schema.students.tutorId, tutorId)];
+
+    if (search) {
+      conditions.push(ilike(schema.students.name, `%${search}%`));
+    }
+
+    const whereClause = and(...conditions);
+
+    const orderColumn = schema.students[sortBy];
+    const orderByClause =
+      sortOrder === 'DESC' ? desc(orderColumn) : asc(orderColumn);
+
+    const [totalCountResult] = await this.db
+      .select({ value: count() })
+      .from(schema.students)
+      .where(whereClause);
+
+    const total = totalCountResult.value;
+    const totalPages = Math.ceil(total / limit);
+
+    const data = await this.db.query.students.findMany({
+      where: whereClause,
       with: {
         contacts: true,
         parents: {
-          with: {
-            contacts: true,
-          },
+          with: { contacts: true },
         },
       },
-      orderBy: (students, { desc }) => [desc(students.createdAt)],
+      orderBy: orderByClause,
+      limit: limit,
+      offset: offset,
     });
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages,
+      },
+    };
   }
 
   async update(

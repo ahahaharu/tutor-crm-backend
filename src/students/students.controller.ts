@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  Query,
 } from '@nestjs/common';
 import { StudentsService } from './students.service';
 import { CreateStudentDto } from './dto/create-student.dto';
@@ -28,6 +29,7 @@ import { UpdateStudentDto } from './dto/update-student.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { GetStudentsQueryDto } from './dto/get-students-query.dto';
 
 @ApiTags('Students')
 @ApiBearerAuth()
@@ -52,9 +54,15 @@ export class StudentsController {
   }
 
   @Get('tutor/:tutorId')
-  @ApiOperation({ summary: 'Get all students for a specific tutor' })
-  findAllByTutor(@Param('tutorId') tutorId: string) {
-    return this.studentsService.findAllByTutor(tutorId);
+  @ApiOperation({
+    summary:
+      'Get all students for a specific tutor with pagination and filters',
+  })
+  findAllByTutor(
+    @Param('tutorId') tutorId: string,
+    @Query() query: GetStudentsQueryDto,
+  ) {
+    return this.studentsService.findAllByTutor(tutorId, query);
   }
 
   @Patch(':id')
