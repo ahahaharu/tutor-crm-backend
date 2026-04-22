@@ -1,9 +1,9 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, ForbiddenException } from '@nestjs/common';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { DB_CONNECTION } from '../database/database.module';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 
 @Injectable()
 export class TransactionsService {
@@ -11,21 +11,38 @@ export class TransactionsService {
     @Inject(DB_CONNECTION) private readonly db: NodePgDatabase<typeof schema>,
   ) {}
 
-  async create(dto: CreateTransactionDto) {
+  private async checkStudentOwnership(studentId: string, tutorId: string) {
+    const student = await this.db.query.students.findFirst({
+      where: and(
+        eq(schema.students.id, studentId),
+        eq(schema.students.tutorId, tutorId),
+      ),
+    });
+    if (!student) {
+      throw new ForbiddenException('Student not found or access denied');
+    }
+  }
+
+  async create(tutorId: string, dto: CreateTransactionDto) {
+    await this.checkStudentOwnership(dto.studentId, tutorId);
+
     const [transaction] = await this.db
       .insert(schema.transactions)
       .values({
         studentId: dto.studentId,
         amount: dto.amount,
         type: dto.type,
-        lessonId: dto.lessonId,
+        lessonId: dto.lessonId, // может быть undefined, это нормально
       })
       .returning();
 
     return transaction;
   }
 
-  async getBalance(studentId: string) {
+  async getBalance(tutorId: string, studentId: string) {
+    // 1. Проверяем, что репетитор смотрит баланс СВОЕГО ученика
+    await this.checkStudentOwnership(studentId, tutorId);
+
     const [result] = await this.db
       .select({
         balance: sql<number>`

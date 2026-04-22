@@ -3,7 +3,7 @@ import { DB_CONNECTION } from '../database/database.module';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../db/schema';
 import { eq, and } from 'drizzle-orm';
-import { CreateLessonDto } from './dto/create-lesson.dto';
+import { CreateLessonDto, LessonStatus } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
 
 @Injectable()
@@ -21,17 +21,20 @@ export class LessonsService {
     });
 
     if (!student) {
-      throw new ForbiddenException(
-        'The student was not found or you do not have access to them',
-      );
+      throw new ForbiddenException('Student not found or access denied');
     }
+
+    const finalPrice =
+      createLessonDto.priceToCharge !== undefined
+        ? createLessonDto.priceToCharge
+        : student.defaultPrice;
 
     const [newLesson] = await this.db
       .insert(schema.lessons)
       .values({
         studentId: createLessonDto.studentId,
         scheduledAt: createLessonDto.scheduledAt,
-        priceToCharge: createLessonDto.priceToCharge,
+        priceToCharge: finalPrice,
         status: createLessonDto.status,
       })
       .returning();
@@ -80,8 +83,14 @@ export class LessonsService {
   }
 
   async update(id: string, tutorId: string, updateLessonDto: UpdateLessonDto) {
-    const lessonInfo = await this.db
-      .select({ lessonId: schema.lessons.id, tutorId: schema.students.tutorId })
+    const [currentLessonInfo] = await this.db
+      .select({
+        lessonId: schema.lessons.id,
+        tutorId: schema.students.tutorId,
+        studentId: schema.lessons.studentId,
+        status: schema.lessons.status,
+        priceToCharge: schema.lessons.priceToCharge,
+      })
       .from(schema.lessons)
       .innerJoin(
         schema.students,
@@ -90,17 +99,68 @@ export class LessonsService {
       .where(eq(schema.lessons.id, id))
       .limit(1);
 
-    if (lessonInfo.length === 0 || lessonInfo[0].tutorId !== tutorId) {
+    if (!currentLessonInfo || currentLessonInfo.tutorId !== tutorId) {
       throw new ForbiddenException('Lesson not found or access denied');
     }
 
-    const [updatedLesson] = await this.db
-      .update(schema.lessons)
-      .set(updateLessonDto)
-      .where(eq(schema.lessons.id, id))
-      .returning();
+    return await this.db.transaction(async (tx) => {
+      const [updatedLesson] = await tx
+        .update(schema.lessons)
+        .set(updateLessonDto)
+        .where(eq(schema.lessons.id, id))
+        .returning();
 
-    return updatedLesson;
+      const finalPrice =
+        updateLessonDto.priceToCharge !== undefined
+          ? updateLessonDto.priceToCharge
+          : currentLessonInfo.priceToCharge;
+
+      if (
+        updateLessonDto.status === LessonStatus.COMPLETED &&
+        currentLessonInfo.status !== 'COMPLETED'
+      ) {
+        await tx.insert(schema.transactions).values({
+          studentId: currentLessonInfo.studentId,
+          lessonId: id,
+          amount: finalPrice,
+          type: 'CHARGE',
+        });
+      }
+
+      if (
+        currentLessonInfo.status === 'COMPLETED' &&
+        updateLessonDto.status &&
+        updateLessonDto.status !== LessonStatus.COMPLETED
+      ) {
+        await tx
+          .delete(schema.transactions)
+          .where(
+            and(
+              eq(schema.transactions.lessonId, id),
+              eq(schema.transactions.type, 'CHARGE'),
+            ),
+          );
+      }
+
+      if (
+        currentLessonInfo.status === 'COMPLETED' &&
+        updateLessonDto.status === undefined &&
+        updateLessonDto.priceToCharge !== undefined &&
+        updateLessonDto.priceToCharge !== currentLessonInfo.priceToCharge
+      ) {
+        await tx
+          .update(schema.transactions)
+          .set({ amount: finalPrice })
+          .where(
+            and(
+              eq(schema.transactions.lessonId, id),
+              eq(schema.transactions.type, 'CHARGE'),
+            ),
+          );
+      }
+
+      return updatedLesson;
+    });
   }
 
   async remove(id: string, tutorId: string) {
