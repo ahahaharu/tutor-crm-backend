@@ -40,7 +40,7 @@ export class AuthService {
       })
       .returning();
 
-    return this.generateToken(newUser.id, newUser.email);
+    return this.generateToken(newUser.id, newUser.email, newUser.name);
   }
 
   async login(dto: LoginDto) {
@@ -61,14 +61,14 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    return this.generateToken(user.id, user.email);
+    return this.generateToken(user.id, user.email, user.name);
   }
 
-  private generateToken(userId: string, email: string) {
+  private generateToken(userId: string, email: string, name: string) {
     const payload = { sub: userId, email };
     return {
       access_token: this.jwtService.sign(payload),
-      user: { id: userId, email, name: email },
+      user: { id: userId, email, name },
     };
   }
 }

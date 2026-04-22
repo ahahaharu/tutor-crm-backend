@@ -65,6 +65,12 @@ export class StudentsController {
     return this.studentsService.findAllByTutor(tutorId, query);
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Get a single student by ID' })
+  findOne(@Param('id') id: string, @Req() req: RequestWithUser) {
+    return this.studentsService.findOne(id, req.user.sub);
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Update a student' })
   update(
@@ -77,10 +83,25 @@ export class StudentsController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete a student' })
+  @ApiOperation({
+    summary: 'Permanently delete a student and all related data',
+  })
   remove(@Param('id') id: string, @Req() req: RequestWithUser) {
-    const tutorId = req.user.sub;
-    return this.studentsService.remove(id, tutorId);
+    return this.studentsService.remove(id, req.user.sub);
+  }
+
+  @Patch(':id/archive')
+  @ApiOperation({
+    summary: 'Archive a student (hide from main lists but keep stats)',
+  })
+  archive(@Param('id') id: string, @Req() req: RequestWithUser) {
+    return this.studentsService.archive(id, req.user.sub);
+  }
+
+  @Patch(':id/unarchive')
+  @ApiOperation({ summary: 'Restore a student from the archive' })
+  unarchive(@Param('id') id: string, @Req() req: RequestWithUser) {
+    return this.studentsService.unarchive(id, req.user.sub);
   }
 
   @Post(':id/avatar')
