@@ -23,6 +23,7 @@ export class StudentsService {
           tutorId: tutorId,
           name: createStudentDto.name,
           avatarUrl: defaultAvatar,
+          defaultPrice: createStudentDto.defaultPrice,
         })
         .returning();
 
@@ -69,7 +70,7 @@ export class StudentsService {
       search,
       sortBy = 'createdAt',
       sortOrder = 'DESC',
-      isArchived, 
+      isArchived,
     } = query;
     const offset = (page - 1) * limit;
 

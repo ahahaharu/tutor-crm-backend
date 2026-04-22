@@ -5,6 +5,8 @@ import {
   IsArray,
   ValidateNested,
   IsEnum,
+  IsInt,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -67,4 +69,13 @@ export class CreateStudentDto {
   @ValidateNested({ each: true })
   @Type(() => CreateParentDto)
   parents?: CreateParentDto[];
+
+  @ApiPropertyOptional({
+    description: 'Стандартная цена за урок',
+    example: 1500,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  defaultPrice?: number;
 }

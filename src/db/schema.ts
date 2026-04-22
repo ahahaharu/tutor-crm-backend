@@ -37,6 +37,7 @@ export const students = pgTable('students', {
   avatarUrl: varchar('avatar_url', { length: 1024 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   isArchived: boolean('is_archived').default(false).notNull(),
+  defaultPrice: integer('default_price').default(0).notNull(),
 });
 
 export const parents = pgTable('parents', {

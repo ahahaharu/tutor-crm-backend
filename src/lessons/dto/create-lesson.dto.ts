@@ -29,13 +29,13 @@ export class CreateLessonDto {
   @IsDate()
   scheduledAt: Date;
 
-  @ApiProperty({
-    description:
-      'Стоимость занятия (в копейках/центах или рублях - как ты решишь)',
+  @ApiPropertyOptional({
+    description: 'Стоимость (если не передать, возьмется из профиля ученика)',
   })
+  @IsOptional()
   @IsInt()
   @Min(0)
-  priceToCharge: number;
+  priceToCharge?: number;
 
   @ApiPropertyOptional({ enum: LessonStatus, default: LessonStatus.PLANNED })
   @IsOptional()
