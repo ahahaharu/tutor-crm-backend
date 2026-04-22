@@ -6,6 +6,7 @@ import {
   timestamp,
   time,
   pgEnum,
+  boolean,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -35,6 +36,7 @@ export const students = pgTable('students', {
   name: varchar('name', { length: 255 }).notNull(),
   avatarUrl: varchar('avatar_url', { length: 1024 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  isArchived: boolean('is_archived').default(false).notNull(),
 });
 
 export const parents = pgTable('parents', {

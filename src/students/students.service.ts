@@ -69,10 +69,17 @@ export class StudentsService {
       search,
       sortBy = 'createdAt',
       sortOrder = 'DESC',
+      isArchived, 
     } = query;
     const offset = (page - 1) * limit;
 
     const conditions = [eq(schema.students.tutorId, tutorId)];
+
+    if (isArchived === true) {
+      conditions.push(eq(schema.students.isArchived, true));
+    } else {
+      conditions.push(eq(schema.students.isArchived, false));
+    }
 
     if (search) {
       conditions.push(ilike(schema.students.name, `%${search}%`));
@@ -114,6 +121,27 @@ export class StudentsService {
         totalPages,
       },
     };
+  }
+
+  async findOne(id: string, tutorId: string) {
+    const student = await this.db.query.students.findFirst({
+      where: and(
+        eq(schema.students.id, id),
+        eq(schema.students.tutorId, tutorId),
+      ),
+      with: {
+        contacts: true,
+        parents: {
+          with: { contacts: true },
+        },
+      },
+    });
+
+    if (!student) {
+      throw new NotFoundException('Student not found or access denied');
+    }
+
+    return student;
   }
 
   async update(
@@ -164,6 +192,38 @@ export class StudentsService {
       throw new NotFoundException('Student not found or access denied');
     }
 
-    return { message: 'Student successfully deleted', id: deletedStudent.id };
+    return { message: 'Student permanently deleted', id: deletedStudent.id };
+  }
+
+  async archive(id: string, tutorId: string) {
+    const [archivedStudent] = await this.db
+      .update(schema.students)
+      .set({ isArchived: true })
+      .where(
+        and(eq(schema.students.id, id), eq(schema.students.tutorId, tutorId)),
+      )
+      .returning();
+
+    if (!archivedStudent) {
+      throw new NotFoundException('Student not found or access denied');
+    }
+
+    return { message: 'Student successfully archived', id: archivedStudent.id };
+  }
+
+  async unarchive(id: string, tutorId: string) {
+    const [restoredStudent] = await this.db
+      .update(schema.students)
+      .set({ isArchived: false })
+      .where(
+        and(eq(schema.students.id, id), eq(schema.students.tutorId, tutorId)),
+      )
+      .returning();
+
+    if (!restoredStudent) {
+      throw new NotFoundException('Student not found or access denied');
+    }
+
+    return { message: 'Student successfully restored', id: restoredStudent.id };
   }
 }
