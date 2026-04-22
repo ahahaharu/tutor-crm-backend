@@ -3,9 +3,8 @@ import { CreateLessonTemplateDto } from './dto/create-lesson-template.dto';
 import { UpdateLessonTemplateDto } from './dto/update-lesson-template.dto';
 import { DB_CONNECTION } from '../database/database.module';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import * as schema from '../db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 
 @Injectable()
 export class LessonTemplatesService {
@@ -170,59 +169,5 @@ export class LessonTemplatesService {
       .returning();
 
     return deletedTemplate;
-  }
-
-  @Cron(CronExpression.EVERY_DAY_AT_3AM)
-  async handleCron() {
-    console.log(
-      'Running automation: Checking for lesson templates to extend...',
-    );
-
-    const allTemplates = await this.db.query.lessonTemplates.findMany();
-
-    for (const template of allTemplates) {
-      // 2. Находим дату самого последнего урока для этого шаблона
-      const [lastLesson] = await this.db
-        .select({ maxDate: schema.lessons.scheduledAt })
-        .from(schema.lessons)
-        .where(eq(schema.lessons.templateId, template.id))
-        .orderBy(desc(schema.lessons.scheduledAt))
-        .limit(1);
-
-      const latestDate = lastLesson?.maxDate
-        ? new Date(lastLesson.maxDate)
-        : new Date(template.firstLessonDate);
-
-      const lookAheadThreshold = new Date();
-      lookAheadThreshold.setDate(lookAheadThreshold.getDate() + 14);
-
-      if (latestDate < lookAheadThreshold) {
-        console.log(
-          `Extending template ${template.id} for student ${template.studentId}`,
-        );
-
-        const lessonsToInsert: (typeof schema.lessons.$inferInsert)[] = [];
-        const intervalDays = 7 * template.intervalWeeks;
-
-        const nextDate = new Date(latestDate);
-
-        for (let i = 0; i < 4; i++) {
-          nextDate.setDate(nextDate.getDate() + intervalDays);
-
-          lessonsToInsert.push({
-            studentId: template.studentId,
-            templateId: template.id,
-            scheduledAt: new Date(nextDate),
-            status: 'PLANNED',
-            priceToCharge: template.defaultPrice,
-          });
-        }
-
-        if (lessonsToInsert.length > 0) {
-          await this.db.insert(schema.lessons).values(lessonsToInsert);
-        }
-      }
-    }
-    console.log('Automation complete.');
   }
 }
