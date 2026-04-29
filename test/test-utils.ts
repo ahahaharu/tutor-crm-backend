@@ -11,7 +11,12 @@ export async function setupTestApp() {
   }).compile();
 
   const app = moduleFixture.createNestApplication();
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+    }),
+  );
   await app.init();
 
   const db = moduleFixture.get<NodePgDatabase<typeof schema>>(DB_CONNECTION);

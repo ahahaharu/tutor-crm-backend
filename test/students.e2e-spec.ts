@@ -25,7 +25,7 @@ describe('StudentsModule (e2e) - Security & Data Isolation', () => {
     const tutorA = await request(app.getHttpServer())
       .post('/auth/register')
       .send({
-        email: 'tutorA@test.com',
+        email: 'students-tutorA@test.com',
         password: 'Password123!',
         name: 'Tutor A',
       });
@@ -35,7 +35,7 @@ describe('StudentsModule (e2e) - Security & Data Isolation', () => {
     const tutorB = await request(app.getHttpServer())
       .post('/auth/register')
       .send({
-        email: 'tutorB@test.com',
+        email: 'students-tutorB@test.com',
         password: 'Password123!',
         name: 'Tutor B',
       });
