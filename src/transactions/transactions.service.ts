@@ -32,7 +32,7 @@ export class TransactionsService {
         studentId: dto.studentId,
         amount: dto.amount,
         type: dto.type,
-        lessonId: dto.lessonId, // может быть undefined, это нормально
+        lessonId: dto.lessonId,
       })
       .returning();
 
@@ -40,7 +40,6 @@ export class TransactionsService {
   }
 
   async getBalance(tutorId: string, studentId: string) {
-    // 1. Проверяем, что репетитор смотрит баланс СВОЕГО ученика
     await this.checkStudentOwnership(studentId, tutorId);
 
     const [result] = await this.db
