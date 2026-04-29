@@ -38,5 +38,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check Docker version
+        run: docker compose version
+
       - name: Run E2E tests
         run: pnpm run test:e2e
