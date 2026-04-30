@@ -1,194 +1,104 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { ForbiddenException } from '@nestjs/common';
+import { INestApplication, ForbiddenException } from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
-import { DB_CONNECTION } from '../database/database.module';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import * as schema from '../db/schema';
+import { setupTestApp, cleanDatabase } from '../../test/test-utils';
 import { TransactionType } from './dto/create-transaction.dto';
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-const makeDb = () => ({
-  query: {
-    students: { findFirst: jest.fn() },
-  },
-  select: jest.fn().mockReturnThis(),
-  from: jest.fn().mockReturnThis(),
-  where: jest.fn().mockReturnThis(),
-  insert: jest.fn().mockReturnThis(),
-  values: jest.fn().mockReturnThis(),
-  returning: jest.fn(),
-});
-
-// ---------------------------------------------------------------------------
-// Fixtures
-// ---------------------------------------------------------------------------
-
-const TUTOR_ID = 'tutor-uuid-1111';
-const STUDENT_ID = 'student-uuid-2222';
-const LESSON_ID = 'lesson-uuid-3333';
-
-const studentFixture = {
-  id: STUDENT_ID,
-  tutorId: TUTOR_ID,
-  name: 'Иван Иванов',
-  defaultPrice: 1500,
-  isArchived: false,
-};
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
-describe('TransactionsService', () => {
+describe('TransactionsService (Integration)', () => {
+  let app: INestApplication;
   let service: TransactionsService;
-  let db: ReturnType<typeof makeDb>;
+  let db: NodePgDatabase<typeof schema>;
 
-  beforeEach(async () => {
-    db = makeDb();
+  let tutorId: string;
+  let strangerTutorId: string;
+  let studentId: string;
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        TransactionsService,
-        { provide: DB_CONNECTION, useValue: db },
-      ],
-    }).compile();
-
-    service = module.get<TransactionsService>(TransactionsService);
+  beforeAll(async () => {
+    const setup = await setupTestApp();
+    app = setup.app;
+    db = setup.db;
+    service = app.get<TransactionsService>(TransactionsService);
+    app.enableShutdownHooks();
   });
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // create()
-  // ─────────────────────────────────────────────────────────────────────────
+  beforeEach(async () => {
+    await cleanDatabase(db);
 
-  describe('create()', () => {
-    it('создаёт PAYMENT-транзакцию и возвращает её', async () => {
-      db.query.students.findFirst.mockResolvedValue(studentFixture);
-      const tx = {
-        id: 'tx-uuid-001',
-        studentId: STUDENT_ID,
-        amount: 1000,
-        type: 'PAYMENT',
-        lessonId: null,
-        createdAt: new Date(),
-      };
-      db.returning.mockResolvedValue([tx]);
+    const [tutor] = await db
+      .insert(schema.tutors)
+      .values({
+        email: 'tx-owner@test.com',
+        passwordHash: 'hash',
+        name: 'Owner Tutor',
+      })
+      .returning();
+    tutorId = tutor.id;
 
-      const result = await service.create(TUTOR_ID, {
-        studentId: STUDENT_ID,
-        amount: 1000,
+    const [stranger] = await db
+      .insert(schema.tutors)
+      .values({
+        email: 'tx-stranger@test.com',
+        passwordHash: 'hash',
+        name: 'Stranger Tutor',
+      })
+      .returning();
+    strangerTutorId = stranger.id;
+
+    const [student] = await db
+      .insert(schema.students)
+      .values({
+        tutorId: tutor.id,
+        name: 'TX Student',
+        defaultPrice: 1000,
+      })
+      .returning();
+    studentId = student.id;
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  describe('Business Logic & Math', () => {
+    it('should correctly calculate the balance after payments and charges', async () => {
+      const initial = await service.getBalance(tutorId, studentId);
+      expect(initial.balance).toBe(0);
+
+      await service.create(tutorId, {
+        studentId,
+        amount: 5000,
         type: TransactionType.PAYMENT,
       });
 
-      expect(result.type).toBe('PAYMENT');
-      expect(result.amount).toBe(1000);
-    });
+      const afterPayment = await service.getBalance(tutorId, studentId);
+      expect(afterPayment.balance).toBe(5000);
 
-    it('создаёт CHARGE-транзакцию', async () => {
-      db.query.students.findFirst.mockResolvedValue(studentFixture);
-      const tx = {
-        id: 'tx-uuid-002',
-        studentId: STUDENT_ID,
-        amount: 500,
-        type: 'CHARGE',
-        lessonId: null,
-        createdAt: new Date(),
-      };
-      db.returning.mockResolvedValue([tx]);
-
-      const result = await service.create(TUTOR_ID, {
-        studentId: STUDENT_ID,
-        amount: 500,
+      await service.create(tutorId, {
+        studentId,
+        amount: 1500,
         type: TransactionType.CHARGE,
       });
 
-      expect(result.type).toBe('CHARGE');
+      const afterCharge = await service.getBalance(tutorId, studentId);
+      expect(afterCharge.balance).toBe(3500);
     });
+  });
 
-    it('сохраняет lessonId, если передан', async () => {
-      db.query.students.findFirst.mockResolvedValue(studentFixture);
-      const tx = {
-        id: 'tx-uuid-003',
-        studentId: STUDENT_ID,
-        amount: 1500,
-        type: 'CHARGE',
-        lessonId: LESSON_ID,
-        createdAt: new Date(),
-      };
-      db.returning.mockResolvedValue([tx]);
-
-      const result = await service.create(TUTOR_ID, {
-        studentId: STUDENT_ID,
-        amount: 1500,
-        type: TransactionType.CHARGE,
-        lessonId: LESSON_ID,
-      });
-
-      expect(result.lessonId).toBe(LESSON_ID);
-    });
-
-    it('выбрасывает ForbiddenException, если студент чужой', async () => {
-      db.query.students.findFirst.mockResolvedValue(null);
-
+  describe('Service-Level Security (checkStudentOwnership)', () => {
+    it('should forbid a stranger tutor from creating a transaction', async () => {
       await expect(
-        service.create(TUTOR_ID, {
-          studentId: STUDENT_ID,
+        service.create(strangerTutorId, {
+          studentId,
           amount: 1000,
           type: TransactionType.PAYMENT,
         }),
       ).rejects.toThrow(ForbiddenException);
     });
-  });
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // getBalance() — ⭐ динамический расчёт через SQL SUM
-  // ─────────────────────────────────────────────────────────────────────────
-
-  describe('getBalance()', () => {
-    const setupBalance = (balance: number) => {
-      db.query.students.findFirst.mockResolvedValue(studentFixture);
-      db.where.mockResolvedValue([{ balance }]);
-    };
-
-    it('возвращает положительный баланс при только PAYMENT', async () => {
-      setupBalance(3000);
-
-      const result = await service.getBalance(TUTOR_ID, STUDENT_ID);
-
-      expect(result.balance).toBe(3000);
-      expect(result.studentId).toBe(STUDENT_ID);
-    });
-
-    it('возвращает отрицательный баланс при только CHARGE', async () => {
-      setupBalance(-1500);
-
-      const result = await service.getBalance(TUTOR_ID, STUDENT_ID);
-
-      expect(result.balance).toBe(-1500);
-    });
-
-    it('возвращает 0, если транзакций нет', async () => {
-      setupBalance(0);
-
-      const result = await service.getBalance(TUTOR_ID, STUDENT_ID);
-
-      expect(result.balance).toBe(0);
-    });
-
-    it('возвращает корректный баланс при смешанных транзакциях (PAYMENT - CHARGE)', async () => {
-      // 5000 PAYMENT - 3500 CHARGE = 1500
-      setupBalance(1500);
-
-      const result = await service.getBalance(TUTOR_ID, STUDENT_ID);
-
-      expect(result.balance).toBe(1500);
-    });
-
-    it('выбрасывает ForbiddenException для чужого студента', async () => {
-      db.query.students.findFirst.mockResolvedValue(null);
-
+    it('should forbid a stranger tutor from viewing the balance', async () => {
       await expect(
-        service.getBalance(TUTOR_ID, STUDENT_ID),
+        service.getBalance(strangerTutorId, studentId),
       ).rejects.toThrow(ForbiddenException);
     });
   });
