@@ -18,7 +18,6 @@ describe('LessonTemplatesService (Integration)', () => {
     app = setup.app;
     db = setup.db;
 
-    // Достаем наш сервис напрямую из DI-контейнера NestJS
     service = app.get<LessonTemplatesService>(LessonTemplatesService);
     app.enableShutdownHooks();
   });
@@ -26,8 +25,6 @@ describe('LessonTemplatesService (Integration)', () => {
   beforeEach(async () => {
     await cleanDatabase(db);
 
-    // В интеграционных тестах мы можем не дергать API авторизации,
-    // а создавать записи напрямую в БД — это быстрее и надежнее.
     const [tutor] = await db
       .insert(schema.tutors)
       .values({
@@ -54,23 +51,21 @@ describe('LessonTemplatesService (Integration)', () => {
   });
 
   describe('create()', () => {
-    it('должен создать шаблон и сгенерировать 4 урока с правильным интервалом', async () => {
-      // 2026-04-01 - это Среда
+    it('should create a template and generate 4 lessons with the correct interval', async () => {
       const firstLessonDate = new Date('2026-04-01T15:00:00.000Z');
 
       const result = await service.create(tutorId, {
         studentId,
-        dayOfWeek: 3, // Среда
+        dayOfWeek: 3,
         startTime: '15:00:00',
         durationMinutes: 60,
         defaultPrice: 1500,
-        intervalWeeks: 2, // Раз в ДВЕ недели
+        intervalWeeks: 2,
         firstLessonDate: firstLessonDate.toISOString(),
       });
 
       expect(result.generatedLessonsCount).toBe(4);
 
-      // Проверяем, что уроки реально появились в базе
       const generatedLessons = await db.query.lessons.findMany({
         where: eq(schema.lessons.templateId, result.template.id),
         orderBy: (lessons, { asc }) => [asc(lessons.scheduledAt)],
@@ -78,7 +73,6 @@ describe('LessonTemplatesService (Integration)', () => {
 
       expect(generatedLessons).toHaveLength(4);
 
-      // Проверяем математику дат (шаг в 14 дней, так как intervalWeeks = 2)
       const expectedDates = [
         '2026-04-01T15:00:00.000Z',
         '2026-04-15T15:00:00.000Z',
@@ -94,8 +88,7 @@ describe('LessonTemplatesService (Integration)', () => {
   });
 
   describe('update()', () => {
-    it('должен обновить шаблон и каскадно изменить цену и время у будущих уроков', async () => {
-      // 1. Создаем шаблон
+    it('should update the template and cascade price and time changes to future lessons', async () => {
       const createResult = await service.create(tutorId, {
         studentId,
         dayOfWeek: 1,
@@ -106,22 +99,18 @@ describe('LessonTemplatesService (Integration)', () => {
         firstLessonDate: new Date('2026-05-04T10:00:00.000Z').toISOString(),
       });
 
-      // 2. Обновляем цену и время
       await service.update(createResult.template.id, tutorId, {
         defaultPrice: 2500,
         startTime: '18:30:00',
       });
 
-      // 3. Достаем обновленные уроки из базы
       const updatedLessons = await db.query.lessons.findMany({
         where: eq(schema.lessons.templateId, createResult.template.id),
       });
 
-      // 4. Проверяем, что каскадное обновление сработало
       updatedLessons.forEach((lesson) => {
         expect(lesson.priceToCharge).toBe(2500);
 
-        // Проверяем, что время изменилось на 18:30
         const lessonDate = new Date(lesson.scheduledAt);
         expect(lessonDate.getUTCHours()).toBe(18);
         expect(lessonDate.getUTCMinutes()).toBe(30);
