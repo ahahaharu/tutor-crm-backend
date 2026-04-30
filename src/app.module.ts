@@ -13,6 +13,8 @@ import { join } from 'path';
 import { ParentsModule } from './parents/parents.module';
 import { ContactsModule } from './contacts/contacts.module';
 import { LoggerModule } from 'nestjs-pino';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -34,6 +36,12 @@ import { LoggerModule } from 'nestjs-pino';
         autoLogging: false,
       },
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
     DatabaseModule,
     TutorsModule,
     DatabaseModule,
@@ -47,6 +55,12 @@ import { LoggerModule } from 'nestjs-pino';
     ContactsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}
