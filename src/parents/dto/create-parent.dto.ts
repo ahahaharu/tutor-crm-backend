@@ -8,8 +8,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-// Импортируем DTO контактов из модуля учеников
-import { CreateContactDto } from '../../students/dto/create-student.dto';
+import { NestedContactDto } from '../../students/dto/create-student.dto';
 
 export class CreateParentDto {
   @ApiProperty({
@@ -23,10 +22,10 @@ export class CreateParentDto {
   @Length(2, 255)
   name: string;
 
-  @ApiPropertyOptional({ type: [CreateContactDto] })
+  @ApiPropertyOptional({ type: [NestedContactDto] })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => CreateContactDto)
-  contacts?: CreateContactDto[];
+  @Type(() => NestedContactDto)
+  contacts?: NestedContactDto[];
 }
