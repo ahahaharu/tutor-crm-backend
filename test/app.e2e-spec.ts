@@ -55,7 +55,7 @@ describe('AuthModule (e2e)', () => {
         email: testUser.email,
         password: testUser.password,
       })
-      .expect(201);
+      .expect(200);
 
     expect(response.body).toHaveProperty('access_token');
   });
