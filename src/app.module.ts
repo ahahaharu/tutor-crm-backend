@@ -12,12 +12,27 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { ParentsModule } from './parents/parents.module';
 import { ContactsModule } from './contacts/contacts.module';
+import { LoggerModule } from 'nestjs-pino';
 
 @Module({
   imports: [
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
+    }),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        transport: {
+          target: 'pino-pretty',
+          options: {
+            singleLine: true,
+            colorize: true,
+            translateTime: 'SYS:standard',
+            ignore: 'pid,hostname',
+          },
+        },
+        autoLogging: false,
+      },
     }),
     DatabaseModule,
     TutorsModule,
