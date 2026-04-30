@@ -21,7 +21,7 @@ export enum ContactType {
   CUSTOM = 'CUSTOM',
 }
 
-export class CreateContactDto {
+export class NestedContactDto {
   @ApiProperty({ enum: ContactType, example: ContactType.TELEGRAM })
   @IsEnum(ContactType, { message: 'Недопустимый тип контакта' })
   type: ContactType;
@@ -36,18 +36,18 @@ export class CreateContactDto {
   customLabel?: string;
 }
 
-export class CreateParentDto {
+export class NestedParentDto {
   @ApiProperty({ example: 'Мария Ивановна' })
   @IsString()
   @Length(2, 255)
   name: string;
 
-  @ApiPropertyOptional({ type: [CreateContactDto] })
+  @ApiPropertyOptional({ type: [NestedContactDto] })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => CreateContactDto)
-  contacts?: CreateContactDto[];
+  @Type(() => NestedContactDto)
+  contacts?: NestedContactDto[];
 }
 
 export class CreateStudentDto {
@@ -56,19 +56,19 @@ export class CreateStudentDto {
   @Length(2, 255)
   name: string;
 
-  @ApiPropertyOptional({ type: [CreateContactDto] })
+  @ApiPropertyOptional({ type: [NestedContactDto] })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => CreateContactDto)
-  contacts?: CreateContactDto[];
+  @Type(() => NestedContactDto)
+  contacts?: NestedContactDto[];
 
-  @ApiPropertyOptional({ type: [CreateParentDto] })
+  @ApiPropertyOptional({ type: [NestedParentDto] })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => CreateParentDto)
-  parents?: CreateParentDto[];
+  @Type(() => NestedParentDto)
+  parents?: NestedParentDto[];
 
   @ApiPropertyOptional({
     description: 'Стандартная цена за урок',
