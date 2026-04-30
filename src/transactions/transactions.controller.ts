@@ -11,7 +11,15 @@ import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import type { RequestWithUser } from '../auth/auth.guard';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBadRequestResponse,
+  ApiForbiddenResponse,
+} from '@nestjs/swagger';
 
 @ApiTags('Transactions')
 @ApiBearerAuth()
@@ -22,7 +30,19 @@ export class TransactionsController {
 
   @Post()
   @ApiOperation({
-    summary: 'Create a manual transaction (e.g., manual payment)',
+    summary:
+      'Create a manual transaction (e.g., manual payment or penalty charge)',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Transaction successfully created.',
+  })
+  @ApiBadRequestResponse({
+    description:
+      'Validation failed (e.g., invalid amount or unknown transaction type).',
+  })
+  @ApiForbiddenResponse({
+    description: 'Student not found or belongs to another tutor.',
   })
   create(
     @Body() createTransactionDto: CreateTransactionDto,
@@ -32,7 +52,19 @@ export class TransactionsController {
   }
 
   @Get('balance/student/:studentId')
-  @ApiOperation({ summary: 'Get current balance for a student' })
+  @ApiOperation({ summary: 'Get current calculated balance for a student' })
+  @ApiParam({
+    name: 'studentId',
+    description: 'Student ID (UUID)',
+    type: 'string',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Student balance successfully calculated and retrieved.',
+  })
+  @ApiForbiddenResponse({
+    description: 'Access denied. Student belongs to another tutor.',
+  })
   getBalance(
     @Param('studentId') studentId: string,
     @Req() req: RequestWithUser,
