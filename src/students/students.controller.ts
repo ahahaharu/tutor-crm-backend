@@ -24,6 +24,7 @@ import {
   ApiResponse,
   ApiConsumes,
   ApiBody,
+  ApiForbiddenResponse,
 } from '@nestjs/swagger';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -53,16 +54,18 @@ export class StudentsController {
     return this.studentsService.create(createStudentDto, tutorId);
   }
 
-  @Get('tutor/:tutorId')
+  @Get()
   @ApiOperation({
     summary:
-      'Get all students for a specific tutor with pagination and filters',
+      'Get all students for the authenticated tutor with pagination and filters',
   })
-  findAllByTutor(
-    @Param('tutorId') tutorId: string,
-    @Query() query: GetStudentsQueryDto,
-  ) {
-    return this.studentsService.findAllByTutor(tutorId, query);
+  @ApiResponse({
+    status: 200,
+    description: 'List of students successfully retrieved.',
+  })
+  @ApiForbiddenResponse({ description: 'Access denied.' })
+  findAll(@Req() req: RequestWithUser, @Query() query: GetStudentsQueryDto) {
+    return this.studentsService.findAllByTutor(req.user.sub, query);
   }
 
   @Get(':id')
