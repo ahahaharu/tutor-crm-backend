@@ -1,9 +1,7 @@
 import { Controller, Get, Post, Body } from '@nestjs/common';
 import { TutorsService } from './tutors.service';
 import { CreateTutorDto } from './dto/create-tutor.dto';
-import { ApiExcludeController } from '@nestjs/swagger';
 
-@ApiExcludeController()
 @Controller('tutors')
 export class TutorsController {
   constructor(private readonly tutorsService: TutorsService) {}
