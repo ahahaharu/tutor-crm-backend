@@ -26,7 +26,11 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new BadRequestException('User with this email already exists');
+      throw new BadRequestException({
+        code: 'EMAIL_ALREADY_EXISTS',
+        field: 'email',
+        message: 'Пользователь с таким email уже существует',
+      });
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
@@ -49,7 +53,10 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException({
+        code: 'INVALID_CREDENTIALS',
+        message: 'Неверный email или пароль',
+      });
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -58,7 +65,10 @@ export class AuthService {
     );
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException({
+        code: 'INVALID_CREDENTIALS',
+        message: 'Неверный email или пароль',
+      });
     }
 
     return this.generateToken(user.id, user.email, user.name);
