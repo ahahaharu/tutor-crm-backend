@@ -24,6 +24,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     let message: string | string[] = 'Internal Server Error';
 
+    let code = 'UNKNOWN_ERROR';
+    let field: string | undefined = undefined;
+
     if (exception instanceof HttpException) {
       const exceptionResponse = exception.getResponse();
 
@@ -36,6 +39,18 @@ export class GlobalExceptionFilter implements ExceptionFilter {
             message = msg as string | string[];
           }
         }
+
+        if ('code' in responseObj && typeof responseObj.code === 'string') {
+          code = responseObj.code;
+        } else if (status === (HttpStatus.TOO_MANY_REQUESTS as number)) {
+          code = 'TOO_MANY_REQUESTS';
+        } else if (Array.isArray(responseObj.message)) {
+          code = 'VALIDATION_ERROR';
+        }
+
+        if ('field' in responseObj && typeof responseObj.field === 'string') {
+          field = responseObj.field;
+        }
       } else if (typeof exceptionResponse === 'string') {
         message = exceptionResponse;
       }
@@ -44,12 +59,15 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         `[Unhandled Exception] ${exception.message}`,
         exception.stack,
       );
+      code = 'INTERNAL_SERVER_ERROR';
     }
 
     const formattedMessage = Array.isArray(message) ? message : [message];
 
     const errorResponse = {
       statusCode: status,
+      code,
+      field,
       timestamp: new Date().toISOString(),
       path: request.url,
       method: request.method,
@@ -58,7 +76,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     if (status !== (HttpStatus.INTERNAL_SERVER_ERROR as number)) {
       this.logger.warn(
-        `[${request.method}] ${request.url} - Status: ${status} - Message: ${JSON.stringify(formattedMessage)}`,
+        `[${request.method}] ${request.url} - Status: ${status} - Code: ${code} - Message: ${JSON.stringify(formattedMessage)}`,
       );
     }
 
