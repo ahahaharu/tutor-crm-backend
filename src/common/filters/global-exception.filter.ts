@@ -42,8 +42,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
         if ('code' in responseObj && typeof responseObj.code === 'string') {
           code = responseObj.code;
-        } else if (status === (HttpStatus.TOO_MANY_REQUESTS as number)) {
-          code = 'TOO_MANY_REQUESTS';
         } else if (Array.isArray(responseObj.message)) {
           code = 'VALIDATION_ERROR';
         }
@@ -60,6 +58,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         exception.stack,
       );
       code = 'INTERNAL_SERVER_ERROR';
+    }
+
+    if (status === (HttpStatus.TOO_MANY_REQUESTS as number)) {
+      code = 'TOO_MANY_REQUESTS';
+      message = 'Слишком много попыток. Пожалуйста, подождите минуту.';
     }
 
     const formattedMessage = Array.isArray(message) ? message : [message];
