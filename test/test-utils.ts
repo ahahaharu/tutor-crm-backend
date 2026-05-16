@@ -4,6 +4,7 @@ import { AppModule } from '../src/app.module';
 import { DB_CONNECTION } from '../src/database/database.module';
 import * as schema from '../src/db/schema';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
 
 export async function setupTestApp() {
   const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -17,6 +18,9 @@ export async function setupTestApp() {
       whitelist: true,
     }),
   );
+
+  app.useGlobalFilters(new GlobalExceptionFilter());
+
   await app.init();
 
   const db = moduleFixture.get<NodePgDatabase<typeof schema>>(DB_CONNECTION);
