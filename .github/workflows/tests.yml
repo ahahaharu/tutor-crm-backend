@@ -33,6 +33,7 @@ jobs:
           echo "DB_USER=postgres" >> .env.test
           echo "DB_PASSWORD=postgres" >> .env.test
           echo "DB_NAME=tutor_db_test" >> .env.test
+          echo "JWT_SECRET=super-secret-test-key" >> .env.test
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
