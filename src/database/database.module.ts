@@ -5,7 +5,7 @@ import * as schema from '../db/schema';
 import * as dotenv from 'dotenv';
 
 export const DB_CONNECTION = 'DB_CONNECTION';
-export const PG_POOL = 'PG_POOL';
+export const PG_POOL = 'PG_POOL'; // Новый токен для доступа к пулу
 
 @Global()
 @Module({
@@ -14,10 +14,8 @@ export const PG_POOL = 'PG_POOL';
       provide: PG_POOL,
       useFactory: () => {
         if (!process.env.DB_PORT) dotenv.config();
-
         return new Pool({
           connectionString: `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST || '127.0.0.1'}:${process.env.DB_PORT || '5433'}/${process.env.DB_NAME}`,
-          ssl: process.env.DB_SSL === 'true' ? true : false,
         });
       },
     },

@@ -8,7 +8,7 @@ if (!process.env.DB_NAME) {
 const host = process.env.DB_HOST || 'localhost';
 const port = process.env.DB_PORT || '5433';
 
-const dbUrl = `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${host}:${port}/${process.env.DB_NAME}?sslmode=require`;
+const dbUrl = `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${host}:${port}/${process.env.DB_NAME}`;
 
 export default defineConfig({
   schema: './src/db/schema.ts',
