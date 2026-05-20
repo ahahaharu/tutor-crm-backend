@@ -16,6 +16,7 @@ export const PG_POOL = 'PG_POOL'; // Новый токен для доступа
         if (!process.env.DB_PORT) dotenv.config();
         return new Pool({
           connectionString: `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST || '127.0.0.1'}:${process.env.DB_PORT || '5433'}/${process.env.DB_NAME}`,
+          ssl: process.env.DB_SSL === 'true' ? true : false,
         });
       },
     },
